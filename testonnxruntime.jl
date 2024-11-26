@@ -1,22 +1,21 @@
 using LibOnnxRuntime
 
-papibase = OrtGetApiBase()
-apibase = unsafe_load(papibase)
-portapi = @ccall $(apibase.GetApi)(ORT_API_VERSION::UInt32)::Ptr{OrtApi}
-ortapi = unsafe_load(portapi)
+base = OrtGetApiBase() |> unsafe_load
+ort = (@ccall $(base.GetApi)(ORT_API_VERSION::UInt32)::Ptr{OrtApi}) |> unsafe_load
 
-rpenv = Ref{Ptr{OrtEnv}}(0)
-status = @ccall $(ortapi.CreateEnv)(ORT_LOGGING_LEVEL_VERBOSE::Cint, "Test"::Cstring, rpenv::Ref{Ptr{OrtEnv}})::Ptr{OrtStatus}
-@info "CreateEnv" status rpenv[]
+env = Ptr{OrtEnv}(0) |> Ref
+status = @ccall $(ort.CreateEnv)(ORT_LOGGING_LEVEL_VERBOSE::Cint, "Test"::Cstring, env::Ptr{Ptr{OrtEnv}})::OrtStatusPtr
 
-if status != Ptr{OrtStatus}(0)
-    msg = (@ccall $(ortapi.GetErrorMessage)(status::Ptr{OrtStatus})::Cstring) |> unsafe_string
-    code = @ccall $(ortapi.GetErrorCode)(status::Ptr{OrtStatus})::Cint
+@info "CreateEnv" status env[]
+
+if status != OrtStatusPtr(0)
+    msg = (@ccall $(ort.GetErrorMessage)(status::OrtStatusPtr)::Cstring) |> unsafe_string
+    code = @ccall $(ort.GetErrorCode)(status::OrtStatusPtr)::Cint
     println("Status: $code $msg")
 end
 
-rpsession_options = Ref(Ptr{OrtSessionOptions}(0))
-status = @ccall $(ortapi.CreateSessionOptions)(rpsession_options::Ref{Ptr{OrtSessionOptions}})::Ptr{OrtStatus}
-@info "CreateSessionOptions" status rpsession_options[]
+options = Ptr{OrtSessionOptions}(0) |> Ref
+status = @ccall $(ort.CreateSessionOptions)(options::Ptr{Ptr{OrtSessionOptions}})::OrtStatusPtr
+@info "CreateSessionOptions" status options[]
 
 # TBD
