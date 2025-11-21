@@ -15,6 +15,7 @@ GetAllocatorWithDefaultOptions(ort, allocator) = @ccall $(ort.GetAllocatorWithDe
 Run(ort, session, run_options, input_names, input_values, input_count, output_names, output_count, output_values) = @ccall $(ort.Run)(session::Ptr{OrtSession}, run_options::Ptr{OrtRunOptions}, input_names::Ptr{Ptr{Cstring}}, input_values::Ptr{Ptr{OrtValue}}, input_count::Csize_t, output_names::Ptr{Ptr{Cstring}}, output_count::Csize_t, output_values::Ptr{Ptr{OrtValue}})::OrtStatusPtr
 CreateCpuMemoryInfo(ort, type, mem_type, out) = @ccall $(ort.CreateCpuMemoryInfo)(type::OrtAllocatorType, mem_type::OrtMemType, out::Ptr{Ptr{OrtMemoryInfo}})::OrtStatusPtr
 CreateTensorWithDataAsOrtValue(ort, info, p_data, p_data_len, shape, shape_len, type, out) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(info::Ptr{OrtMemoryInfo}, p_data::Ptr{Cvoid}, p_data_len::Csize_t, shape::Ptr{Clonglong}, shape_len::Csize_t, type::ONNXTensorElementDataType, out::Ptr{Ptr{OrtValue}})::OrtStatusPtr
+GetTensorMutableData(ort, value, out) = @ccall $(ort.GetTensorMutableData)(value::Ptr{OrtValue}, out::Ptr{Ptr{Cvoid}})::OrtStatusPtr
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
@@ -71,4 +72,12 @@ output_tensors = Ptr{OrtValue}() |> Ref
 end
 check_status(ort, status)   
 @info "Run" status output_tensors[]
+
+out = Ptr{Cvoid}() |> Ref
+status = GetTensorMutableData(ort, output_tensors[], out)
+check_status(ort, status)
+@info "GetTensorMutableData" status out[]
+
+output_array = unsafe_wrap(Array, out[] |> Ptr{Cfloat}, prod(input_shape)) |> v -> reshape(v, (5, 4, 3))
+@info "Output values:" output_array
 
