@@ -13,7 +13,8 @@ CreateSessionOptions(ort, options) = @ccall $(ort.CreateSessionOptions)(options:
 CreateSession(ort, env, model_path, options, session) = @ccall $(ort.CreateSession)(env::Ptr{OrtEnv}, model_path::Cwstring, options::Ptr{OrtSessionOptions}, session::Ptr{Ptr{OrtSession}})::OrtStatusPtr
 GetAllocatorWithDefaultOptions(ort, allocator) = @ccall $(ort.GetAllocatorWithDefaultOptions)(allocator::Ptr{Ptr{OrtAllocator}})::OrtStatusPtr
 Run(ort, session, run_options, input_names, input_values, input_count, output_names, output_count, output_values) = @ccall $(ort.Run)(session::Ptr{OrtSession}, run_options::Ptr{OrtRunOptions}, input_names::Ptr{Ptr{Cstring}}, input_values::Ptr{Ptr{OrtValue}}, input_count::Csize_t, output_names::Ptr{Ptr{Cstring}}, output_count::Csize_t, output_values::Ptr{Ptr{OrtValue}})::OrtStatusPtr
-CreateTensorWithDataAsOrtValue(ort, allocator, data_ptr, data_length, shape_ptr, shape_length, type, value) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(allocator::Ptr{OrtAllocator}, data_ptr::Ptr{Cvoid}, data_length::Csize_t, shape_ptr::Ptr{Int64}, shape_length::Csize_t, type::ONNXTensorElementDataType, value::Ptr{Ptr{OrtValue}})::OrtStatusPtr
+CreateCpuMemoryInfo(ort, type, mem_type, out) = @ccall $(ort.CreateCpuMemoryInfo)(type::OrtAllocatorType, mem_type::OrtMemType, out::Ptr{Ptr{OrtMemoryInfo}})::OrtStatusPtr
+CreateTensorWithDataAsOrtValue(ort, info, p_data, p_data_len, shape, shape_len, type, out) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(info::Ptr{OrtMemoryInfo}, p_data::Ptr{Cvoid}, p_data_len::Csize_t, shape::Ptr{Clonglong}, shape_len::Csize_t, type::ONNXTensorElementDataType, out::Ptr{Ptr{OrtValue}})::OrtStatusPtr
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
@@ -25,29 +26,49 @@ end
 
 base = OrtGetApiBase() |> unsafe_load
 ort = GetApi(base, ORT_API_VERSION)
-env = Ptr{OrtEnv}(0) |> Ref
+env = Ptr{OrtEnv}() |> Ref
 status = CreateEnv(ort, ORT_LOGGING_LEVEL_VERBOSE, "Test", env)
 check_status(ort, status)
 @info "CreateEnv" status env[]
 
-options = Ptr{OrtSessionOptions}(0) |> Ref
+options = Ptr{OrtSessionOptions}() |> Ref
 status = CreateSessionOptions(ort, options)
 check_status(ort, status)
 @info "CreateSessionOptions" status options[]
 
-session = Ptr{OrtSession}(0) |> Ref
+session = Ptr{OrtSession}() |> Ref
 status = CreateSession(ort, env[], MODEL_PATH, options[], session)
 check_status(ort, status)
+@info "CreateSession" status session[]
 
-allocator = Ptr{OrtAllocator}(0) |> Ref
+allocator = Ptr{OrtAllocator}() |> Ref
 status = GetAllocatorWithDefaultOptions(ort, allocator)
 check_status(ort, status)
+@info "GetAllocatorWithDefaultOptions" status allocator[]
 
-# GC.@preserve INPUT_NAME OUTPUT_NAME begin
-    input_names = [pointer(INPUT_NAME)]
-    input_shape = Clonglong[3, 4, 5]
-    input_values = fill(Cfloat(1.0), 5, 4, 3) # ONNX uses row-major order
-    input_tensor = Ptr{OrtValue}(0) |> Ref   
-    status = CreateTensorWithDataAsOrtValue(ort, allocator[], input_values, sizeof(input_values), input_shape, length(input_shape), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, input_tensor)
-    check_status(ort, status)
-# end
+memory_info = Ptr{OrtMemoryInfo}() |> Ref
+status = CreateCpuMemoryInfo(ort, OrtArenaAllocator, OrtMemTypeDefault, memory_info)
+check_status(ort, status)
+@info "CreateCpuMemoryInfo" status memory_info[]
+
+input_shape = Clonglong[3, 4, 5]
+input_values = fill(Cfloat(1.0), 5, 4, 3) # ONNX uses row-major order
+input_tensor = Ptr{OrtValue}() |> Ref   
+status = CreateTensorWithDataAsOrtValue(ort, memory_info[], input_values, sizeof(input_values), input_shape, length(input_shape), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, input_tensor)
+check_status(ort, status)
+@info "CreateTensorWithDataAsOrtValue" status input_tensor[]
+
+input_tensors = [input_tensor[]]
+output_tensor = Ptr{OrtValue}() 
+output_tensors = [output_tensor]
+num_outputs = length(output_tensors)
+input_names = [pointer(INPUT_NAME)] # Needs GC preserve
+output_names = [pointer(OUTPUT_NAME)] # Needs GC preserve
+output_tensors = Ptr{OrtValue}() |> Ref
+
+@preserve INPUT_NAME OUTPUT_NAME begin 
+    status = Run(ort, session[], C_NULL, input_names, input_tensors, length(input_tensors), output_names, length(output_names), output_tensors)
+end
+check_status(ort, status)   
+@info "Run" status output_tensors[]
+
