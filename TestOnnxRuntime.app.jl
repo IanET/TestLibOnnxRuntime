@@ -16,12 +16,18 @@ Run(ort, session, run_options, input_names, input_values, input_count, output_na
 CreateCpuMemoryInfo(ort, type, mem_type, out) = @ccall $(ort.CreateCpuMemoryInfo)(type::OrtAllocatorType, mem_type::OrtMemType, out::Ptr{Ptr{OrtMemoryInfo}})::OrtStatusPtr
 CreateTensorWithDataAsOrtValue(ort, info, p_data, p_data_len, shape, shape_len, type, out) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(info::Ptr{OrtMemoryInfo}, p_data::Ptr{Cvoid}, p_data_len::Csize_t, shape::Ptr{Clonglong}, shape_len::Csize_t, type::ONNXTensorElementDataType, out::Ptr{Ptr{OrtValue}})::OrtStatusPtr
 GetTensorMutableData(ort, value, out) = @ccall $(ort.GetTensorMutableData)(value::Ptr{OrtValue}, out::Ptr{Ptr{Cvoid}})::OrtStatusPtr
+ReleaeseStatus(ort, status) = @ccall $(ort.ReleaseStatus)(status::OrtStatusPtr)::Cvoid
+ReleaseValue(ort, value) = @ccall $(ort.ReleaseValue)(value::Ptr{OrtValue})::Cvoid
+ReleaeseSession(ort, session) = @ccall $(ort.ReleaseSession)(session::Ptr{OrtSession})::Cvoid
+ReleaseSessionOptions(ort, options) = @ccall $(ort.ReleaseSessionOptions)(options::Ptr{OrtSessionOptions})::Cvoid
+ReleaseEnv(ort, env) = @ccall $(ort.ReleaseEnv)(env::Ptr{OrtEnv})::Cvoid
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
         msg = GetErrorMessage(ort, status)
         code = GetErrorCode(ort, status)
         println("Status: $code $msg")
+        ReleaeseStatus(ort, status)
     end
 end
 
@@ -81,3 +87,12 @@ check_status(ort, status)
 output_array = unsafe_wrap(Array, out[] |> Ptr{Cfloat}, prod(input_shape)) |> v -> reshape(v, (5, 4, 3))
 @info "Output values:" output_array
 @assert isapprox.(output_array, 0.731) |> all
+
+# Clean up resources
+ReleaseValue(ort, input_tensor[])
+ReleaseValue(ort, output_tensors[])
+ReleaeseSession(ort, session[])
+ReleaseSessionOptions(ort, options[])
+ReleaseEnv(ort, env[])
+
+@info "Test completed successfully."
