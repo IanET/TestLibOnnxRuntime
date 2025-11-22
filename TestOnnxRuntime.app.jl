@@ -80,4 +80,4 @@ check_status(ort, status)
 
 output_array = unsafe_wrap(Array, out[] |> Ptr{Cfloat}, prod(input_shape)) |> v -> reshape(v, (5, 4, 3))
 @info "Output values:" output_array
-
+@assert isapprox.(output_array, 0.731) |> all
