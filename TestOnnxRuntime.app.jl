@@ -6,21 +6,6 @@ const INPUT_NAME = "x"
 const OUTPUT_NAME = "y"
 
 GetApi(base, version) = (@ccall $(base.GetApi)(version::UInt32)::Ptr{OrtApi}) |> unsafe_load
-CreateEnv(ort, level, status, env) = @ccall $(ort.CreateEnv)(level::Cint, status::Cstring, env::Ptr{Ptr{OrtEnv}})::OrtStatusPtr
-GetErrorMessage(ort, status) = (@ccall $(ort.GetErrorMessage)(status::OrtStatusPtr)::Cstring) |> unsafe_string
-GetErrorCode(ort, status) = @ccall $(ort.GetErrorCode)(status::OrtStatusPtr)::Cint
-CreateSessionOptions(ort, options) = @ccall $(ort.CreateSessionOptions)(options::Ptr{Ptr{OrtSessionOptions}})::OrtStatusPtr
-CreateSession(ort, env, model_path, options, session) = @ccall $(ort.CreateSession)(env::Ptr{OrtEnv}, model_path::Cwstring, options::Ptr{OrtSessionOptions}, session::Ptr{Ptr{OrtSession}})::OrtStatusPtr
-GetAllocatorWithDefaultOptions(ort, allocator) = @ccall $(ort.GetAllocatorWithDefaultOptions)(allocator::Ptr{Ptr{OrtAllocator}})::OrtStatusPtr
-Run(ort, session, run_options, input_names, input_values, input_count, output_names, output_count, output_values) = @ccall $(ort.Run)(session::Ptr{OrtSession}, run_options::Ptr{OrtRunOptions}, input_names::Ptr{Ptr{Cstring}}, input_values::Ptr{Ptr{OrtValue}}, input_count::Csize_t, output_names::Ptr{Ptr{Cstring}}, output_count::Csize_t, output_values::Ptr{Ptr{OrtValue}})::OrtStatusPtr
-CreateCpuMemoryInfo(ort, type, mem_type, out) = @ccall $(ort.CreateCpuMemoryInfo)(type::OrtAllocatorType, mem_type::OrtMemType, out::Ptr{Ptr{OrtMemoryInfo}})::OrtStatusPtr
-CreateTensorWithDataAsOrtValue(ort, info, p_data, p_data_len, shape, shape_len, type, out) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(info::Ptr{OrtMemoryInfo}, p_data::Ptr{Cvoid}, p_data_len::Csize_t, shape::Ptr{Clonglong}, shape_len::Csize_t, type::ONNXTensorElementDataType, out::Ptr{Ptr{OrtValue}})::OrtStatusPtr
-GetTensorMutableData(ort, value, out) = @ccall $(ort.GetTensorMutableData)(value::Ptr{OrtValue}, out::Ptr{Ptr{Cvoid}})::OrtStatusPtr
-ReleaeseStatus(ort, status) = @ccall $(ort.ReleaseStatus)(status::OrtStatusPtr)::Cvoid
-ReleaseValue(ort, value) = @ccall $(ort.ReleaseValue)(value::Ptr{OrtValue})::Cvoid
-ReleaeseSession(ort, session) = @ccall $(ort.ReleaseSession)(session::Ptr{OrtSession})::Cvoid
-ReleaseSessionOptions(ort, options) = @ccall $(ort.ReleaseSessionOptions)(options::Ptr{OrtSessionOptions})::Cvoid
-ReleaseEnv(ort, env) = @ccall $(ort.ReleaseEnv)(env::Ptr{OrtEnv})::Cvoid
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
