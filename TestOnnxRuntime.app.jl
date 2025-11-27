@@ -1,10 +1,12 @@
 using LibOnnxRuntime
 import .GC: @preserve
+import .Base: cconvert
 
 const MODEL_PATH = "model.onnx"
 const INPUT_NAME = "x"
 const OUTPUT_NAME = "y"
 
+to_cwstring(s::String) = cconvert(Cwstring, s)
 GetApi(base, version) = (@ccall $(base.GetApi)(version::UInt32)::Ptr{OrtApi}) |> unsafe_load
 
 function check_status(ort, status)
@@ -30,8 +32,7 @@ check_status(ort, status)
 @info "CreateSessionOptions" status options[]
 
 session = Ptr{OrtSession}() |> Ref
-wpath_ptr = transcode(Cwchar_t, MODEL_PATH) |> pointer
-@preserve MODEL_PATH status = CreateSession(ort, env[], wpath_ptr, options[], session)
+status = CreateSession(ort, env[], MODEL_PATH |> to_cwstring, options[], session)
 check_status(ort, status)
 @info "CreateSession" status session[]
 
