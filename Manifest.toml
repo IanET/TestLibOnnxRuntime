@@ -67,7 +67,7 @@ version = "1.9.0+0"
 
 [[deps.LibOnnxRuntime]]
 deps = ["CEnum", "Pkg"]
-git-tree-sha1 = "768841395e8f0358f1da139acd724559df65251d"
+git-tree-sha1 = "e41f4d5423997fefd256a436f701617b2601fcfd"
 repo-rev = "wrap_ptrs"
 repo-url = "https://github.com/IanET/LibOnnxRuntime.git"
 uuid = "edd8e961-822f-4801-b21c-cac5f01a00fa"

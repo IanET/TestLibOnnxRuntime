@@ -11,8 +11,9 @@ function check_status(ort, status)
     if status != OrtStatusPtr(0)
         msg = GetErrorMessage(ort, status)
         code = GetErrorCode(ort, status)
-        println("Status: $code $msg")
-        ReleaeseStatus(ort, status)
+        # println("Status: $code $msg")
+        ReleaseStatus(ort, status)
+        @assert false "ONNX Runtime returned an error: $code $msg"
     end
 end
 
@@ -29,7 +30,8 @@ check_status(ort, status)
 @info "CreateSessionOptions" status options[]
 
 session = Ptr{OrtSession}() |> Ref
-status = CreateSession(ort, env[], MODEL_PATH, options[], session)
+wpath_ptr = transcode(Cwchar_t, MODEL_PATH) |> pointer
+@preserve MODEL_PATH status = CreateSession(ort, env[], wpath_ptr, options[], session)
 check_status(ort, status)
 @info "CreateSession" status session[]
 
@@ -76,7 +78,7 @@ output_array = unsafe_wrap(Array, out[] |> Ptr{Cfloat}, prod(input_shape)) |> v 
 # Clean up resources
 ReleaseValue(ort, input_tensor[])
 ReleaseValue(ort, output_tensors[])
-ReleaeseSession(ort, session[])
+ReleaseSession(ort, session[])
 ReleaseSessionOptions(ort, options[])
 ReleaseEnv(ort, env[])
 
