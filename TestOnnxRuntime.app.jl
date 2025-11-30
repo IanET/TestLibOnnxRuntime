@@ -7,7 +7,6 @@ const INPUT_NAME = "x"
 const OUTPUT_NAME = "y"
 
 to_cwstring(s::String) = cconvert(Cwstring, s)
-GetApi(base, version) = (@ccall $(base.GetApi)(version::UInt32)::Ptr{OrtApi}) |> unsafe_load
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
@@ -20,7 +19,7 @@ function check_status(ort, status)
 end
 
 base = OrtGetApiBase() |> unsafe_load
-ort = GetApi(base, ORT_API_VERSION)
+ort = GetApi(base, ORT_API_VERSION) |> unsafe_load
 env = Ptr{OrtEnv}() |> Ref
 status = CreateEnv(ort, ORT_LOGGING_LEVEL_VERBOSE, "Test", env)
 check_status(ort, status)
