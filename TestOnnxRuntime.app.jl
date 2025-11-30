@@ -1,38 +1,25 @@
 using LibOnnxRuntime
 import .GC: @preserve
+import .Base: cconvert
 
 const MODEL_PATH = "model.onnx"
 const INPUT_NAME = "x"
 const OUTPUT_NAME = "y"
 
-GetApi(base, version) = (@ccall $(base.GetApi)(version::UInt32)::Ptr{OrtApi}) |> unsafe_load
-CreateEnv(ort, level, status, env) = @ccall $(ort.CreateEnv)(level::Cint, status::Cstring, env::Ptr{Ptr{OrtEnv}})::OrtStatusPtr
-GetErrorMessage(ort, status) = (@ccall $(ort.GetErrorMessage)(status::OrtStatusPtr)::Cstring) |> unsafe_string
-GetErrorCode(ort, status) = @ccall $(ort.GetErrorCode)(status::OrtStatusPtr)::Cint
-CreateSessionOptions(ort, options) = @ccall $(ort.CreateSessionOptions)(options::Ptr{Ptr{OrtSessionOptions}})::OrtStatusPtr
-CreateSession(ort, env, model_path, options, session) = @ccall $(ort.CreateSession)(env::Ptr{OrtEnv}, model_path::Cwstring, options::Ptr{OrtSessionOptions}, session::Ptr{Ptr{OrtSession}})::OrtStatusPtr
-GetAllocatorWithDefaultOptions(ort, allocator) = @ccall $(ort.GetAllocatorWithDefaultOptions)(allocator::Ptr{Ptr{OrtAllocator}})::OrtStatusPtr
-Run(ort, session, run_options, input_names, input_values, input_count, output_names, output_count, output_values) = @ccall $(ort.Run)(session::Ptr{OrtSession}, run_options::Ptr{OrtRunOptions}, input_names::Ptr{Ptr{Cstring}}, input_values::Ptr{Ptr{OrtValue}}, input_count::Csize_t, output_names::Ptr{Ptr{Cstring}}, output_count::Csize_t, output_values::Ptr{Ptr{OrtValue}})::OrtStatusPtr
-CreateCpuMemoryInfo(ort, type, mem_type, out) = @ccall $(ort.CreateCpuMemoryInfo)(type::OrtAllocatorType, mem_type::OrtMemType, out::Ptr{Ptr{OrtMemoryInfo}})::OrtStatusPtr
-CreateTensorWithDataAsOrtValue(ort, info, p_data, p_data_len, shape, shape_len, type, out) = @ccall $(ort.CreateTensorWithDataAsOrtValue)(info::Ptr{OrtMemoryInfo}, p_data::Ptr{Cvoid}, p_data_len::Csize_t, shape::Ptr{Clonglong}, shape_len::Csize_t, type::ONNXTensorElementDataType, out::Ptr{Ptr{OrtValue}})::OrtStatusPtr
-GetTensorMutableData(ort, value, out) = @ccall $(ort.GetTensorMutableData)(value::Ptr{OrtValue}, out::Ptr{Ptr{Cvoid}})::OrtStatusPtr
-ReleaeseStatus(ort, status) = @ccall $(ort.ReleaseStatus)(status::OrtStatusPtr)::Cvoid
-ReleaseValue(ort, value) = @ccall $(ort.ReleaseValue)(value::Ptr{OrtValue})::Cvoid
-ReleaeseSession(ort, session) = @ccall $(ort.ReleaseSession)(session::Ptr{OrtSession})::Cvoid
-ReleaseSessionOptions(ort, options) = @ccall $(ort.ReleaseSessionOptions)(options::Ptr{OrtSessionOptions})::Cvoid
-ReleaseEnv(ort, env) = @ccall $(ort.ReleaseEnv)(env::Ptr{OrtEnv})::Cvoid
+to_cwstring(s::String) = cconvert(Cwstring, s)
 
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
         msg = GetErrorMessage(ort, status)
         code = GetErrorCode(ort, status)
-        println("Status: $code $msg")
-        ReleaeseStatus(ort, status)
+        # println("Status: $code $msg")
+        ReleaseStatus(ort, status)
+        @assert false "ONNX Runtime returned an error: $code $msg"
     end
 end
 
 base = OrtGetApiBase() |> unsafe_load
-ort = GetApi(base, ORT_API_VERSION)
+ort = GetApi(base, ORT_API_VERSION) |> unsafe_load
 env = Ptr{OrtEnv}() |> Ref
 status = CreateEnv(ort, ORT_LOGGING_LEVEL_VERBOSE, "Test", env)
 check_status(ort, status)
@@ -44,7 +31,7 @@ check_status(ort, status)
 @info "CreateSessionOptions" status options[]
 
 session = Ptr{OrtSession}() |> Ref
-status = CreateSession(ort, env[], MODEL_PATH, options[], session)
+status = CreateSession(ort, env[], MODEL_PATH |> to_cwstring, options[], session)
 check_status(ort, status)
 @info "CreateSession" status session[]
 
@@ -91,7 +78,7 @@ output_array = unsafe_wrap(Array, out[] |> Ptr{Cfloat}, prod(input_shape)) |> v 
 # Clean up resources
 ReleaseValue(ort, input_tensor[])
 ReleaseValue(ort, output_tensors[])
-ReleaeseSession(ort, session[])
+ReleaseSession(ort, session[])
 ReleaseSessionOptions(ort, options[])
 ReleaseEnv(ort, env[])
 
