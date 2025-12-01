@@ -2,19 +2,23 @@ using LibOnnxRuntime
 import .GC: @preserve
 import .Base: cconvert
 
-const MODEL_PATH = "model.onnx"
+to_cwstring(s::String) = cconvert(Cwstring, s)
+
+if Sys.iswindows()
+    const MODEL_PATH = "model.onnx" |> to_cwstring
+elseif Sys.islinux()
+    const MODEL_PATH = "model.onnx"
+end
 const INPUT_NAME = "x"
 const OUTPUT_NAME = "y"
 
-to_cwstring(s::String) = cconvert(Cwstring, s)
-
 function check_status(ort, status)
     if status != OrtStatusPtr(0)
-        msg = GetErrorMessage(ort, status)
+        msg = GetErrorMessage(ort, status) |> unsafe_string
         code = GetErrorCode(ort, status)
         # println("Status: $code $msg")
-        ReleaseStatus(ort, status)
         @assert false "ONNX Runtime returned an error: $code $msg"
+        ReleaseStatus(ort, status)
     end
 end
 
@@ -31,7 +35,7 @@ check_status(ort, status)
 @info "CreateSessionOptions" status options[]
 
 session = Ptr{OrtSession}() |> Ref
-status = CreateSession(ort, env[], MODEL_PATH |> to_cwstring, options[], session)
+status = CreateSession(ort, env[], MODEL_PATH, options[], session)
 check_status(ort, status)
 @info "CreateSession" status session[]
 
